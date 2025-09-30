@@ -5,6 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.text()); // Add this to handle sendBeacon text data
 
 const clients = [];
 
@@ -37,20 +38,33 @@ app.get('/events', (req, res) => {
 });
 
 app.post('/maxconv/click', (req, res) => {
-  const clickData = {
+  let clickData;
+  
+  // Handle sendBeacon (sends as text) or regular fetch (sends as JSON)
+  try {
+    if (typeof req.body === 'string') {
+      clickData = JSON.parse(req.body);
+    } else {
+      clickData = req.body;
+    }
+  } catch(e) {
+    clickData = req.body;
+  }
+  
+  const formattedData = {
     type: 'click',
-    offer: req.body.offer || 'Unknown',
-    source: req.body.source || 'Direct',
-    subid: req.body.subid || 'N/A',
-    country: req.body.country || 'Unknown',
+    offer: clickData.offer || 'Unknown',
+    source: clickData.source || 'Direct',
+    subid: clickData.subid || 'N/A',
+    country: clickData.country || 'Unknown',
     timestamp: new Date().toISOString()
   };
   
-  console.log('Click received:', clickData);
+  console.log('Click received:', formattedData);
   
   clients.forEach(client => {
     try {
-      client.write(`data: ${JSON.stringify(clickData)}\n\n`);
+      client.write(`data: ${JSON.stringify(formattedData)}\n\n`);
     } catch (err) {
       console.error('Error sending to client:', err);
     }
